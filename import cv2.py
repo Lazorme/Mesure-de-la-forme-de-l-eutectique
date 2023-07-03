@@ -1,6 +1,6 @@
 import cv2
 import numpy as np
-
+import matplotlib.pyplot as plt
 
 
 def pixelize_image(image, scale_factor):
@@ -28,6 +28,17 @@ def segment_image(image_path, threshold):
 
     #Image plus nette
     image=cv2.imread(image_path,0)
+    cv2.imshow("image de base",image)
+
+    # Obtenir les dimensions de l'image
+    hauteur, largeur = image.shape
+    print(hauteur, largeur)
+    x1 = largeur
+    y1 = 0
+    x2 = largeur//5
+    y2 = (hauteur//3)*2
+    image = image[y1:y2, x2:x1]
+
     #net= sharpen_image(image)
     pix=pixelize_image(image,scale_factor)
     gray = cv2.equalizeHist(pix)
@@ -41,6 +52,8 @@ def segment_image(image_path, threshold):
     #cv2.imshow('image', image)
 
     # Appliquer un seuillage pour segmenter les taches foncées
+    #canny = cv2.Canny(gray, 30, 150)
+    #cv2.imshow("canny",canny)
     _, segmented = cv2.threshold(gray, threshold, 255, cv2.THRESH_BINARY)
 
     # Effectuer une opération de morphologie pour améliorer la segmentation
@@ -51,6 +64,10 @@ def segment_image(image_path, threshold):
     contours, _ = cv2.findContours(segmented, cv2.RETR_TREE, cv2.CHAIN_APPROX_NONE)
     # Dessiner les contours et attribuer un numéro à chaque tache
     output = cv2.cvtColor(segmented, cv2.COLOR_GRAY2BGR)
+    bluecount = 0
+    greencount = 0
+    yellowcount = 0
+    redcount = 0
     for i, contour in enumerate(contours):
         # Calculer l'aire de la tache
         A1 = cv2.contourArea(contour)
@@ -59,7 +76,7 @@ def segment_image(image_path, threshold):
             #cv2.putText(output, str(i+1), tuple(contour[0][0]), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2)
 
             # Afficher l'aire de la tache
-            print("Aire de la tache", i+1, ":", A1)
+            #print("Aire de la tache", i+1, ":", A1)
 
             # Trouver le cercle d'encadrement le plus petit (centre, rayon)
             (x, y), R2 = cv2.minEnclosingCircle(contour)
@@ -68,18 +85,21 @@ def segment_image(image_path, threshold):
             #Calcul du fcateur 
             A2=np.pi*R2*R2
             Compare=A1/A2
-            print(Compare)
+            #print(Compare)
 
             #Repartition des couleurs
             if 0.81<Compare<1:
                 color = [255, 0, 0]  # Bleu (RVB) 
-                Bluecount=+1
+                bluecount += 1
             elif 0.61<Compare<0.80:
                 color = [0,255,0]  #Vert
+                greencount += 1 
             elif 0.41<Compare<0.60:
                 color = [0, 255, 255]  # Jaune (RVB)
+                yellowcount += 1
             else :
                 color =[0,0,255] #Rouge
+                redcount += 1
 
             cv2.drawContours(output, [contour], -1, color, 2)
             cv2.fillPoly(output, [contour], color)
@@ -87,17 +107,38 @@ def segment_image(image_path, threshold):
             #cv2.circle(output, (int(x), int(y)), R2, (0, 255, 0), 2)
             # Afficher l'image segmentée avec les numéros de tache
 
+            #Calcul des proportions
+    total = bluecount+greencount+yellowcount+redcount
+    bleu = bluecount / total
+    vert = greencount / total
+    jaune = yellowcount / total
+    rouge = redcount / total
+    print (bleu,vert,jaune,rouge)
+
+    #Création de l'histogramme
+    data = [bleu,vert,jaune,rouge]
+    barres = ["bleu","vert","jaune","rouge"]
+    colors = ['blue', 'green', 'yellow', 'red']
+    plt.bar(barres,data,color=colors)
+    plt.ylabel('Proportions')
+    plt.title('Histogramme des proportions')
+    plt.show()
+
+    output = cv2.resize(output, nouvelle_taille)
     cv2.imshow('Segmented Image', output)
     cv2.waitKey(0)
     cv2.destroyAllWindows()
 
 # Chemin vers l'image d'entrée
-image_path = '50.png'
+image_path = '28juin-x50_01.jpg'
 
-# Seuil pour la segmentation 
+# Variables globales
 threshold = 60
 min_area=100
 scale_factor= 1.5
+nouvelle_taille = (1536, 912)
+
+
 
 # Feuillage adaptatif
 #block_size = 61
