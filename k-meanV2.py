@@ -50,8 +50,8 @@ def segment_image(segmented_image, threshold):
     cv2.imshow('intput',gray)
 
     # Appliquer un seuillage pour segmenter les taches foncées
-    #_, segmented = cv2.threshold(gray, threshold, 255, cv2.THRESH_BINARY)
-    adaptive_threshold = cv2.adaptiveThreshold(image, 255, cv2.ADAPTIVE_THRESH_MEAN_C, cv2.THRESH_BINARY, 11, 2)
+    _, segmented = cv2.threshold(gray, threshold, 255, cv2.THRESH_BINARY)
+    #adaptive_threshold = cv2.adaptiveThreshold(image, 255, cv2.ADAPTIVE_THRESH_MEAN_C, cv2.THRESH_BINARY, 11, 2)
     # Effectuer une opération de morphologie pour améliorer la segmentation
     kernel = np.ones((5, 5), np.uint8)
     segmented = cv2.morphologyEx(segmented, cv2.MORPH_OPEN, kernel)
