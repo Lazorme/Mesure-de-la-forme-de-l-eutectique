@@ -2,17 +2,31 @@ import cv2
 import numpy as np
 import matplotlib.pyplot as plt
 
+def kmeans_image_segmentation(image, k):
+    hauteur, largeur = image.shape
+    print(hauteur, largeur)
+    x1 = largeur
+    y1 = 0
+    x2 = largeur//5
+    y2 = (hauteur//3)*2
+    image = image[y1:y2, x2:x1]
 
-def pixelize_image(image, scale_factor):
+    # Convertir l'image en une matrice de points de données
+    data = image.reshape((-1, 3)).astype(np.float32)
 
-    # Déterminer la nouvelle taille de l'image en fonction du facteur de mise à l'échelle
-    new_width = int(image.shape[1] / scale_factor)
-    new_height = int(image.shape[0] / scale_factor)
+    # Définir les critères d'arrêt pour l'algorithme des k-moyennes
+    criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 1000, 0.001)
 
-    # Réduire la taille de l'image en utilisant l'interpolation NEAREST
-    pixelized_image = cv2.resize(image, (new_width, new_height), interpolation=cv2.INTER_NEAREST)
-    return pixelized_image
+    # Appliquer l'algorithme des k-moyennes
+    _, labels, centers = cv2.kmeans(data, k, None, criteria, 10, cv2.KMEANS_RANDOM_CENTERS)
 
+    # Convertir les centres des clusters en valeurs d'intensité d'image
+    centers = np.uint8(centers)
+
+    # Réaffecter les pixels de l'image en utilisant les labels des clusters
+    segmented_image = centers[labels.flatten()].reshape(image.shape)
+
+    return segmented_image
 
 def sharpen_image(image):
     # Définir le noyau du filtre de netteté
@@ -26,40 +40,24 @@ def sharpen_image(image):
 
 def segment_image(image,seuil):
 
-    #Ouverture de l'image
-    if seuil==0:
-        seuil=0
+    if seuil==int(1):
+        seuil=int(1)
     else :
         seuil=int(seuil)
-    cv2.imshow("image de base",image)
 
-    # Obtenir les dimensions de l'image
-    hauteur, largeur = image.shape
-    print(hauteur, largeur)
-    x1 = largeur
-    y1 = 0
-    x2 = largeur//5
-    y2 = (hauteur//3)*2
-    image = image[y1:y2, x2:x1]
-
-    #Pixéliser l'image + convertir en equaliser l'histogramme
-    pix=pixelize_image(image,scale_factor)
-    gray = cv2.equalizeHist(pix)
-    cv2.imshow('intput',gray)
-
-    #Seuillage---------------------------------------
-    if seuil ==0:
+    #Seuillage
+    if seuil ==1:
         # Calculer l'histogramme
-        hist = cv2.calcHist([gray], [0], None, [256], [0, 256])
+        hist = cv2.calcHist([image], [0], None, [256], [0, 256])
          # Trouver la valeur du pic le plus élevé de l'histogramme
         _, max_val, _, _ = cv2.minMaxLoc(hist)
         # Trouver la position du pic le plus élevé
         max_index = np.where(hist == max_val)[0][0]
-        _, segmented = cv2.threshold(gray, max_index-20, 255, cv2.THRESH_BINARY)
+        _, segmented = cv2.threshold(image, max_index-40, 255, cv2.THRESH_BINARY)
     else :
-      _, segmented = cv2.threshold(gray, seuil, 255, cv2.THRESH_BINARY)
+      _, segmented = cv2.threshold(image, seuil, 255, cv2.THRESH_BINARY)
 
-
+    cv2.imshow('imageNoirbalnc',segmented)
 
     # Effectuer une opération de morphologie pour améliorer la segmentation
     kernel = np.ones((5, 5), np.uint8)
@@ -76,12 +74,12 @@ def segment_image(image,seuil):
     for i, contour in enumerate(contours):
         # Calculer l'aire de la tache
         A1 = cv2.contourArea(contour)
-        if 3500 >A1 > min_area:
+        if 7000 >A1 > min_area:
             # Dessiner le contour et attribuer un numéro à la tache
             #cv2.putText(output, str(i+1), tuple(contour[0][0]), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2)
 
             # Afficher l'aire de la tache
-            #print("Aire de la tache", i+1, ":", A1)
+            print("Aire de la tache", i+1, ":", A1)
 
             # Trouver le cercle d'encadrement le plus petit (centre, rayon)
             (x, y), R2 = cv2.minEnclosingCircle(contour)
@@ -118,25 +116,49 @@ def segment_image(image,seuil):
     vert = greencount / total
     jaune = yellowcount / total
     rouge = redcount / total
-    print (bleu,vert,jaune,rouge)
+    #print (bleu,vert,jaune,rouge)
+    # Créer le subplot avec une disposition en deux colonnes
+    fig, axs = plt.subplots(1, 2, figsize=(16, 8))
 
-    #Création de l'histogramme
-    data = [bleu,vert,jaune,rouge]
-    barres = ["bleu","vert","jaune","rouge"]
+    # Superposer les deux premières images rectangulaires
+    axs[0].imshow(cv2.cvtColor(image, cv2.COLOR_BGR2RGB))
+    axs[0].imshow(cv2.cvtColor(output, cv2.COLOR_BGR2RGB), alpha=0.5)
+    axs[0].axis('off')
+    axs[0].set_title('Classification')
+
+    # Ajuster les espacements entre les sous-graphiques
+    plt.subplots_adjust(wspace=0.2)
+
+    # Afficher l'histogramme des proportions
+    data = [bleu, vert, jaune, rouge]
+    barres = ["bleu", "vert", "jaune", "rouge"]
     colors = ['blue', 'green', 'yellow', 'red']
-    plt.bar(barres,data,color=colors)
-    plt.ylabel('Proportions')
-    plt.title('Histogramme des proportions')
-    plt.show()
+    axs[1].bar(barres, data, color=colors)
+    axs[1].set_ylabel('Proportions')
+    axs[1].set_title('Histogramme des proportions')
 
-    output = cv2.resize(output, nouvelle_taille)
-    cv2.imshow('Segmented Image', output)
+    # Afficher les deux figures côte à côte
+    plt.show()
+    #output = cv2.resize(output, nouvelle_taille)
+    #cv2.imshow('Segmented Image', output)
     cv2.waitKey(0)
     cv2.destroyAllWindows()
 
+def main (image,seuil,k):
+    image = cv2.imread(image, 0)
+    image = cv2.equalizeHist(image)
+    image=sharpen_image(image)
+    imageTraiter=kmeans_image_segmentation(image,k)
+    hauteur, largeur = image.shape
+    print(hauteur, largeur)
+    x1 = largeur
+    y1 = 0
+    x2 = largeur//5
+    y2 = (hauteur//3)*2
+    image = image[y1:y2, x2:x1]
+    segment_image(imageTraiter,seuil)
 
 # Variables globales
-#threshold = 60
-min_area=100
+min_area=50
 scale_factor= 1.5
 nouvelle_taille = (1536, 912)
